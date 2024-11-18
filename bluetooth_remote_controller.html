@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCell Car Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 20px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background-color: #2196F3;
+            color: white;
+            min-width: 100px;
+        }
+        
+        #connectButton {
+            background-color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        
+        #forward { grid-column: 2; grid-row: 1; }
+        #left { grid-column: 1; grid-row: 2; }
+        #right { grid-column: 3; grid-row: 2; }
+        #backward { grid-column: 2; grid-row: 3; }
+    </style>
+</head>
+<body>
+    <button id="connectButton">Connect to Car</button>
+    <div id="controls" style="display: none;">
+        <button id="forward">↑</button>
+        <button id="left">←</button>
+        <button id="right">→</button>
+        <button id="backward">↓</button>
+    </div>
+    <script>
+        let characteristic;
+        
+        async function connectToCar() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'CodeCell-Car' }],
+                    optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+                });
+                
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+                characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+                
+                document.getElementById('connectButton').style.display = 'none';
+                document.getElementById('controls').style.display = 'grid';
+            } catch (error) {
+                console.error(error);
+            }
+        }
+        
+        async function sendCommand(command) {
+            if (characteristic) {
+                try {
+                    const encoder = new TextEncoder();
+                    await characteristic.writeValue(encoder.encode(command));
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+        }
+        
+        document.getElementById('connectButton').addEventListener('click', connectToCar);
+        
+        // Define command mapping
+        const commandMap = {
+            'forward': 'F',
+            'backward': 'B',
+            'left': 'L',
+            'right': 'R'
+        };
+        
+        // Add event listeners for all direction buttons
+        Object.keys(commandMap).forEach(direction => {
+            const button = document.getElementById(direction);
+            const command = commandMap[direction];  // Get the correct command from our mapping
+            
+            button.addEventListener('touchstart', () => {
+                button.classList.add('pressed');
+                sendCommand(command);
+            });
+            
+            button.addEventListener('touchend', () => {
+                button.classList.remove('pressed');
+            });
+            
+            // For desktop testing
+            button.addEventListener('mousedown', () => {
+                button.classList.add('pressed');
+                sendCommand(command);
+            });
+            
+            button.addEventListener('mouseup', () => {
+                button.classList.remove('pressed');
+            });
+        });
+    </script>
+</body>
+</html>
